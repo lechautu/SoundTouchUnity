@@ -60,6 +60,12 @@ namespace TL.SoundTouch
             }
         }
 
+        public void Clear()
+        {
+            this.writePos = 0;
+            this.readPos = 0;
+        }
+
         public void Dispose()
         {
             this.buffer = null;

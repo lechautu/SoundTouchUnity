@@ -17,6 +17,7 @@ namespace TL.SoundTouch.Unity
         float[] processedBuffer;
         float[] audioInputData;
         int audioReadPos;
+        bool isAudioPlayingInMainThread;
 
         [SerializeField] AudioClip audioClip;
         public AudioClip Clip
@@ -41,10 +42,7 @@ namespace TL.SoundTouch.Unity
         }
 
         public float Duration => audioClip != null ? audioClip.length : 0;
-
-        private bool isSourcePlaying;
-        public bool IsPlaying => audioInputData != null && audioReadPos < audioInputData.Length && isSourcePlaying;
-
+        public bool IsPlaying => audioInputData != null && audioReadPos < audioInputData.Length && audioSource.isPlaying;
         public float Time => audioInputData != null && audioClip != null ? 1.0f * audioReadPos / audioInputData.Length * audioClip.length : 0;
 
         public void Play()
@@ -91,6 +89,11 @@ namespace TL.SoundTouch.Unity
             SetupTempo();
         }
 
+        void Update()
+        {
+            isAudioPlayingInMainThread = audioSource.isPlaying;
+        }
+
         void SetupClip()
         {
             if (audioClip == null)
@@ -122,6 +125,10 @@ namespace TL.SoundTouch.Unity
 
         void PCMReaderCallback(float[] data)
         {
+            if (!isAudioPlayingInMainThread)
+            {
+                return;
+            }
             int needData = data.Length;
             while (outBuffer.Available < needData && audioReadPos < audioInputData.Length)
             {
@@ -165,6 +172,8 @@ namespace TL.SoundTouch.Unity
             audioReadPos = 0;
             soundTouch.Clear();
             audioSource.Stop();
+            inBuffer.Clear();
+            outBuffer.Clear();
         }
 
         void OnDestroy()
@@ -177,11 +186,6 @@ namespace TL.SoundTouch.Unity
         void PrintVersion()
         {
             Debug.Log("SoundTouch version: " + SoundTouch.Version);
-        }
-
-        void Update()
-        {
-            isSourcePlaying = audioSource.isPlaying;
         }
         #endregion
     }
