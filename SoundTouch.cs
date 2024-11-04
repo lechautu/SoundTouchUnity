@@ -395,19 +395,6 @@ namespace TL.SoundTouch
         }
 
         /// <summary>
-        /// int16 version of putSamples(): This accept int16 (short) sample data
-        /// and internally converts it to float format before processing
-        /// </summary>
-        /// <param name="samples">Sample input buffer.</param>
-        /// <param name="numSamples">Number of sample frames in buffer. Notice
-        /// that in case of multi-channel sound a single 
-        /// sample frame contains data for all channels.</param>
-        public void PutSamplesI16(short[] samples, uint numSamples)
-        {
-            lock (SyncRoot) { NativeMethods.PutSamples_i16(handle, samples, numSamples); }
-        }
-
-        /// <summary>
         /// Receive processed samples from the processor.
         /// </summary>
         /// <param name="outBuffer">Buffer where to copy output samples</param>
@@ -416,18 +403,6 @@ namespace TL.SoundTouch
         public uint ReceiveSamples(float[] outBuffer, uint maxSamples)
         {
             lock (SyncRoot) { return NativeMethods.ReceiveSamples(handle, outBuffer, maxSamples); }
-        }
-
-        /// <summary>
-        /// int16 version of receiveSamples(): This converts internal float samples
-        /// into int16 (short) return data type
-        /// </summary>
-        /// <param name="outBuffer">Buffer where to copy output samples.</param>
-        /// <param name="maxSamples">How many samples to receive at max.</param>
-        /// <returns>Number of received sample frames</returns>
-        public uint ReceiveSamplesI16(short[] outBuffer, uint maxSamples)
-        {
-            lock (SyncRoot) { return NativeMethods.ReceiveSamples_i16(handle, outBuffer, maxSamples); }
         }
 
         #endregion
@@ -518,9 +493,6 @@ namespace TL.SoundTouch
             [DllImport(SoundTouchLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "soundtouch_putSamples")]
             public static extern void PutSamples(IntPtr h, float[] samples, uint numSamples);
 
-            [DllImport(SoundTouchLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "soundtouch_putSamples_i16")]
-            public static extern void PutSamples_i16(IntPtr h, short[] samples, uint numSamples);
-
             [DllImport(SoundTouchLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "soundtouch_clear")]
             public static extern void Clear(IntPtr h);
 
@@ -535,9 +507,6 @@ namespace TL.SoundTouch
 
             [DllImport(SoundTouchLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "soundtouch_receiveSamples")]
             public static extern uint ReceiveSamples(IntPtr h, float[] outBuffer, uint maxSamples);
-
-            [DllImport(SoundTouchLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "soundtouch_receiveSamples_i16")]
-            public static extern uint ReceiveSamples_i16(IntPtr h, short[] outBuffer, uint maxSamples);
 
             [DllImport(SoundTouchLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "soundtouch_numSamples")]
             public static extern uint NumSamples(IntPtr h);
