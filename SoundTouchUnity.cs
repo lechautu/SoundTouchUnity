@@ -17,7 +17,6 @@ namespace TL.SoundTouch.Unity
         float[] processedBuffer;
         float[] audioInputData;
         int audioReadPos;
-        bool isAudioPlayingInMainThread;
 
         [SerializeField] AudioClip audioClip;
         public AudioClip Clip
@@ -41,9 +40,11 @@ namespace TL.SoundTouch.Unity
             }
         }
 
+        bool isPlaying;
+        public bool IsPlaying => isPlaying && audioInputData != null && audioReadPos < audioInputData.Length;
+
         public float Duration => audioClip != null ? audioClip.length : 0;
-        public bool IsPlaying => audioInputData != null && audioReadPos < audioInputData.Length && audioSource.isPlaying;
-        public float Time => audioInputData != null && audioClip != null ? 1.0f * audioReadPos / audioInputData.Length * audioClip.length : 0;
+        public float Time => audioClip != null && audioInputData != null ? 1.0f * audioReadPos / audioInputData.Length * audioClip.length : 0;
 
         public void Play()
         {
@@ -52,21 +53,30 @@ namespace TL.SoundTouch.Unity
                 Debug.LogWarning("clip is not set");
                 return;
             }
-            if (IsPlaying)
-            {
-                return;
-            }
+            isPlaying = true;
             audioSource.Play();
         }
 
         public void Pause()
         {
+            isPlaying = false;
             audioSource.Pause();
         }
 
         public void Stop()
         {
+            isPlaying = false;
+            audioSource.Stop();
             ResetComponent();
+        }
+
+        public void Seek(float seconds)
+        {
+            soundTouch.Clear();
+            inBuffer.Clear();
+            outBuffer.Clear();
+            seconds = Mathf.Clamp(seconds, 0, audioClip.length);
+            audioReadPos = (int)(seconds / audioClip.length * audioInputData.Length);
         }
 
         #region Private methods
@@ -86,49 +96,68 @@ namespace TL.SoundTouch.Unity
         void Start()
         {
             SetupClip();
-            SetupTempo();
         }
 
-        void Update()
+        void OnDestroy()
         {
-            isAudioPlayingInMainThread = audioSource.isPlaying;
+            soundTouch.Dispose();
+            inBuffer.Dispose();
+            outBuffer.Dispose();
         }
 
         void SetupClip()
         {
+            isPlaying = false;
+            audioSource.Stop();
             if (audioClip == null)
             {
                 return;
             }
+
             audioInputData = new float[audioClip.samples * audioClip.channels];
             audioClip.GetData(audioInputData, 0);
             if (dynamicClip == null || dynamicClip.frequency != audioClip.frequency || dynamicClip.channels != audioClip.channels)
             {
-                if (dynamicClip != null)
-                {
-                    Destroy(dynamicClip);
-                }
                 int channels = audioClip.channels;
                 int freq = audioClip.frequency;
-                dynamicClip = AudioClip.Create(string.Empty, 1024, channels, freq, true, PCMReaderCallback);
-                audioSource.clip = dynamicClip;
                 soundTouch.Channels = (uint)channels;
                 soundTouch.SampleRate = (uint)freq;
+                audioSource.clip = CreateDynamicClip(channels, freq, ref dynamicClip);
+                audioSource.Play();
             }
+
             ResetComponent();
+        }
+
+        AudioClip CreateDynamicClip(int channels, int frequency, ref AudioClip dynamicClip)
+        {
+            if (dynamicClip != null)
+            {
+                Destroy(dynamicClip);
+            }
+            dynamicClip = AudioClip.Create(string.Empty, 1024, channels, frequency, true, PCMReaderCallback);
+            return dynamicClip;
         }
 
         void SetupTempo()
         {
+            if (soundTouch == null)
+            {
+                return;
+            }
             soundTouch.Tempo = tempo;
         }
 
         void PCMReaderCallback(float[] data)
         {
-            if (!isAudioPlayingInMainThread)
-            {
-                return;
-            }
+            // if (!isPlaying)
+            // {
+            //     for (int i = 0; i < data.Length; i++)
+            //     {
+            //         data[i] = 0;
+            //     }
+            //     return;
+            // }
             int needData = data.Length;
             while (outBuffer.Available < needData && audioReadPos < audioInputData.Length)
             {
@@ -153,6 +182,7 @@ namespace TL.SoundTouch.Unity
             {
                 return;
             }
+
             int readLength = Mathf.Min(length, audioInputData.Length - audioReadPos);
             inBuffer.Write(audioInputData, audioReadPos, readLength);
             audioReadPos += readLength;
@@ -171,16 +201,8 @@ namespace TL.SoundTouch.Unity
         {
             audioReadPos = 0;
             soundTouch.Clear();
-            audioSource.Stop();
             inBuffer.Clear();
             outBuffer.Clear();
-        }
-
-        void OnDestroy()
-        {
-            soundTouch.Dispose();
-            inBuffer.Dispose();
-            outBuffer.Dispose();
         }
 
         void PrintVersion()
