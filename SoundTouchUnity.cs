@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 namespace TL.SoundTouch.Unity
@@ -79,11 +80,9 @@ namespace TL.SoundTouch.Unity
 
         public void Seek(float seconds)
         {
-            soundTouch.Clear();
-            inBuffer.Clear();
-            outBuffer.Clear();
             seconds = Mathf.Clamp(seconds, 0, audioClip.length);
             audioReadPos = (int)(seconds / audioClip.length * audioInputData.Length);
+            Flush();
         }
 
         #region Private methods
@@ -208,6 +207,14 @@ namespace TL.SoundTouch.Unity
             soundTouch.Clear();
             inBuffer.Clear();
             outBuffer.Clear();
+        }
+
+        void Flush()
+        {
+            soundTouch.Clear();
+            inBuffer.Clear();
+            outBuffer.Clear();
+            audioSource.clip = CreateDynamicClip(audioClip.channels, audioClip.frequency, ref dynamicClip);
         }
 
         void PrintVersion()
