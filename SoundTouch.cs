@@ -41,6 +41,8 @@ namespace TL.SoundTouch
         #region Internal Members
 #if UNITY_IOS && !UNITY_EDITOR
         internal const string SoundTouchLibrary = "__Internal";
+#elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
+        internal const string SoundTouchLibrary = "SoundTouch-Mac";
 #else
         internal const string SoundTouchLibrary = "SoundTouch";
 #endif
@@ -576,19 +578,6 @@ namespace TL.SoundTouch
             lock (SyncRoot) { NativeMethods.BpmPutSamples(handle, samples, numSamples); }
         }
 
-        /// <summary>
-        /// int16 version of putSamples(): This accept int16 (short) sample data
-        /// and internally converts it to float format before processing
-        /// </summary>
-        /// <param name="samples">Sample input buffer.</param>
-        /// <param name="numSamples">Number of sample frames in buffer. Notice
-        /// that in case of multi-channel sound a single 
-        /// sample frame contains data for all channels.</param>
-        public void PutSamplesI16(short[] samples, uint numSamples)
-        {
-            lock (SyncRoot) { NativeMethods.BpmPutSamples_i16(handle, samples, numSamples); }
-        }
-
         #endregion
 
         #region IDisposable Support
@@ -640,9 +629,6 @@ namespace TL.SoundTouch
 
             [DllImport(SoundTouch.SoundTouchLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "bpm_putSamples")]
             public static extern void BpmPutSamples(IntPtr h, float[] samples, uint numSamples);
-
-            [DllImport(SoundTouch.SoundTouchLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "bpm_putSamples_i16")]
-            public static extern void BpmPutSamples_i16(IntPtr h, short[] samples, uint numSamples);
 
             [DllImport(SoundTouch.SoundTouchLibrary, CallingConvention = CallingConvention.Cdecl, EntryPoint = "bpm_getBpm")]
             public static extern float BpmGet(IntPtr h);

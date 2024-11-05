@@ -40,8 +40,18 @@ namespace TL.SoundTouch.Unity
             }
         }
 
-        bool isPlaying;
-        public bool IsPlaying => isPlaying && audioInputData != null && audioReadPos < audioInputData.Length;
+        float pitchSemitone = 0;
+        public float PitchSemitone
+        {
+            get => pitchSemitone;
+            set
+            {
+                pitchSemitone = value;
+                SetupSemitone();
+            }
+        }
+
+        public bool IsPlaying => audioSource.isPlaying && audioInputData != null && audioReadPos < audioInputData.Length;
 
         public float Duration => audioClip != null ? audioClip.length : 0;
         public float Time => audioClip != null && audioInputData != null ? 1.0f * audioReadPos / audioInputData.Length * audioClip.length : 0;
@@ -53,19 +63,16 @@ namespace TL.SoundTouch.Unity
                 Debug.LogWarning("clip is not set");
                 return;
             }
-            isPlaying = true;
             audioSource.Play();
         }
 
         public void Pause()
         {
-            isPlaying = false;
             audioSource.Pause();
         }
 
         public void Stop()
         {
-            isPlaying = false;
             audioSource.Stop();
             ResetComponent();
         }
@@ -107,8 +114,8 @@ namespace TL.SoundTouch.Unity
 
         void SetupClip()
         {
-            isPlaying = false;
             audioSource.Stop();
+            ResetComponent();
             if (audioClip == null)
             {
                 return;
@@ -123,10 +130,7 @@ namespace TL.SoundTouch.Unity
                 soundTouch.Channels = (uint)channels;
                 soundTouch.SampleRate = (uint)freq;
                 audioSource.clip = CreateDynamicClip(channels, freq, ref dynamicClip);
-                audioSource.Play();
             }
-
-            ResetComponent();
         }
 
         AudioClip CreateDynamicClip(int channels, int frequency, ref AudioClip dynamicClip)
@@ -148,16 +152,17 @@ namespace TL.SoundTouch.Unity
             soundTouch.Tempo = tempo;
         }
 
+        void SetupSemitone()
+        {
+            if (soundTouch == null)
+            {
+                return;
+            }
+            soundTouch.PitchSemiTones = pitchSemitone;
+        }
+
         void PCMReaderCallback(float[] data)
         {
-            // if (!isPlaying)
-            // {
-            //     for (int i = 0; i < data.Length; i++)
-            //     {
-            //         data[i] = 0;
-            //     }
-            //     return;
-            // }
             int needData = data.Length;
             while (outBuffer.Available < needData && audioReadPos < audioInputData.Length)
             {
@@ -207,6 +212,7 @@ namespace TL.SoundTouch.Unity
 
         void PrintVersion()
         {
+            if (SoundTouch.IsAvailable)
             Debug.Log("SoundTouch version: " + SoundTouch.Version);
         }
         #endregion
