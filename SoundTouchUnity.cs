@@ -197,6 +197,7 @@ namespace TL.SoundTouch.Unity
                 inBuffer.Read(block, 0, block.Length);
                 soundTouch.PutSamples(block, BLOCK_SIZE / 2);
                 int receivedSamplesCount = (int)soundTouch.ReceiveSamples(processedBuffer, BLOCK_SIZE / 2);
+                Debug.Log($"receivedSamplesCount: {receivedSamplesCount}");
                 outBuffer.Write(processedBuffer, 0, receivedSamplesCount * 2);
             }
         }
