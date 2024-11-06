@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 namespace TL.SoundTouch.Unity
@@ -17,7 +16,7 @@ namespace TL.SoundTouch.Unity
         AudioClip dynamicClip;
         float[] processedBuffer;
         float[] audioInputData;
-        int audioReadPos;
+        int audioReadPosition;
 
         [SerializeField] AudioClip audioClip;
         public AudioClip Clip
@@ -52,10 +51,20 @@ namespace TL.SoundTouch.Unity
             }
         }
 
-        public bool IsPlaying => audioSource.isPlaying && audioInputData != null && audioReadPos < audioInputData.Length;
+        int delayNumSamples;
+        public int DelayNumSamples
+        {
+            get => delayNumSamples;
+            set
+            {
+                delayNumSamples = value;
+                Debug.Log("DelayNumSamples: " + delayNumSamples);
+            }
+        }
 
+        public bool IsPlaying => audioSource.isPlaying && audioInputData != null && (audioReadPosition - delayNumSamples) < audioInputData.Length;
         public float Duration => audioClip != null ? audioClip.length : 0;
-        public float Time => audioClip != null && audioInputData != null ? 1.0f * audioReadPos / audioInputData.Length * audioClip.length : 0;
+        public float Time => audioClip != null && audioInputData != null ? 1.0f * (audioReadPosition - delayNumSamples) / audioInputData.Length * audioClip.length : 0;
 
         public void Play()
         {
@@ -75,14 +84,14 @@ namespace TL.SoundTouch.Unity
         public void Stop()
         {
             audioSource.Stop();
-            ResetComponent();
+            Flush(true, true);
         }
 
         public void Seek(float seconds)
         {
             seconds = Mathf.Clamp(seconds, 0, audioClip.length);
-            audioReadPos = (int)(seconds / audioClip.length * audioInputData.Length);
-            Flush();
+            audioReadPosition = (int)(seconds / audioClip.length * audioInputData.Length);
+            Flush(clearBuffer: true);
         }
 
         #region Private methods
@@ -114,7 +123,7 @@ namespace TL.SoundTouch.Unity
         void SetupClip()
         {
             audioSource.Stop();
-            ResetComponent();
+            Flush(resetAudioReadPosition: true);
             if (audioClip == null)
             {
                 return;
@@ -122,14 +131,12 @@ namespace TL.SoundTouch.Unity
 
             audioInputData = new float[audioClip.samples * audioClip.channels];
             audioClip.GetData(audioInputData, 0);
-            if (dynamicClip == null || dynamicClip.frequency != audioClip.frequency || dynamicClip.channels != audioClip.channels)
-            {
-                int channels = audioClip.channels;
-                int freq = audioClip.frequency;
-                soundTouch.Channels = (uint)channels;
-                soundTouch.SampleRate = (uint)freq;
-                audioSource.clip = CreateDynamicClip(channels, freq, ref dynamicClip);
-            }
+            int channels = audioClip.channels;
+            int freq = audioClip.frequency;
+            soundTouch.Channels = (uint)channels;
+            soundTouch.SampleRate = (uint)freq;
+            audioSource.clip = CreateDynamicClip(channels, freq, ref dynamicClip);
+            DelayNumSamples = audioReadPosition;
         }
 
         AudioClip CreateDynamicClip(int channels, int frequency, ref AudioClip dynamicClip)
@@ -163,7 +170,7 @@ namespace TL.SoundTouch.Unity
         void PCMReaderCallback(float[] data)
         {
             int needData = data.Length;
-            while (outBuffer.Available < needData && audioReadPos < audioInputData.Length)
+            while (outBuffer.Available < needData && audioReadPosition < audioInputData.Length)
             {
                 Process(needData);
             }
@@ -178,6 +185,7 @@ namespace TL.SoundTouch.Unity
                     data[i] = 0;
                 }
             }
+            Debug.Log("PCMReaderCallback");
         }
 
         void Process(int length)
@@ -187,9 +195,9 @@ namespace TL.SoundTouch.Unity
                 return;
             }
 
-            int readLength = Mathf.Min(length, audioInputData.Length - audioReadPos);
-            inBuffer.Write(audioInputData, audioReadPos, readLength);
-            audioReadPos += readLength;
+            int readLength = Mathf.Min(length, audioInputData.Length - audioReadPosition);
+            inBuffer.Write(audioInputData, audioReadPosition, readLength);
+            audioReadPosition += readLength;
 
             while (inBuffer.Available >= BLOCK_SIZE)
             {
@@ -197,31 +205,33 @@ namespace TL.SoundTouch.Unity
                 inBuffer.Read(block, 0, block.Length);
                 soundTouch.PutSamples(block, BLOCK_SIZE / 2);
                 int receivedSamplesCount = (int)soundTouch.ReceiveSamples(processedBuffer, BLOCK_SIZE / 2);
-                Debug.Log($"receivedSamplesCount: {receivedSamplesCount}");
                 outBuffer.Write(processedBuffer, 0, receivedSamplesCount * 2);
             }
         }
 
-        void ResetComponent()
+        void Flush(bool clearBuffer = false, bool resetAudioReadPosition = false)
         {
-            audioReadPos = 0;
+            if (resetAudioReadPosition)
+            {
+                audioReadPosition = 0;
+            }
             soundTouch.Clear();
             inBuffer.Clear();
             outBuffer.Clear();
-        }
-
-        void Flush()
-        {
-            soundTouch.Clear();
-            inBuffer.Clear();
-            outBuffer.Clear();
-            audioSource.clip = CreateDynamicClip(audioClip.channels, audioClip.frequency, ref dynamicClip);
+            if (clearBuffer)
+            {
+                audioSource.clip = CreateDynamicClip(audioClip.channels, audioClip.frequency, ref dynamicClip);
+                if (resetAudioReadPosition)
+                {
+                    DelayNumSamples = audioReadPosition;
+                }
+            }
         }
 
         void PrintVersion()
         {
             if (SoundTouch.IsAvailable)
-            Debug.Log("SoundTouch version: " + SoundTouch.Version);
+                Debug.Log("SoundTouch version: " + SoundTouch.Version);
         }
         #endregion
     }
