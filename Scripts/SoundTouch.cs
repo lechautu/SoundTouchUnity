@@ -44,7 +44,7 @@ namespace TL.SoundTouch
 #elif UNITY_EDITOR_OSX || UNITY_STANDALONE_OSX
         internal const string SoundTouchLibrary = "SoundTouch-Mac";
 #elif UNITY_ANDROID && !UNITY_EDITOR
-        internal const string SoundTouchLibrary = "soundtouch";
+        internal const string SoundTouchLibrary = "libsoundtouch";
 #else
         internal const string SoundTouchLibrary = "SoundTouch";
 #endif
