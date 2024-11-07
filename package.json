@@ -1,0 +1,14 @@
+{
+  "name": "com.tl.soundtouch-unity",
+  "version": "1.0.0",
+  "displayName": "SoundTouch For Unity",
+  "description": "Pre-built SoundTouch C++ library for Unity, supports Windows/OSX/Android/iOS",
+  "unity": "2021.3",
+  "dependencies": {
+      
+  },
+  "author": {
+      "name": "Le Chau Tu",
+      "email": "lechautu1993@gmail.com"
+  }
+}
