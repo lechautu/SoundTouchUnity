@@ -24,7 +24,7 @@ namespace TL.SoundTouch.Unity
             set
             {
                 audioClip = value;
-                SetupClip();
+                SetupClip(audioClip);
             }
         }
 
@@ -64,7 +64,13 @@ namespace TL.SoundTouch.Unity
             get => audioClip != null && audioInputData != null ? 1.0f * (audioReadPosition - delayNumSamples) / audioInputData.Length * audioClip.length : 0;
             set
             {
-                Seek(value);
+                if (audioClip == null)
+                {
+                    return;
+                }
+                float seconds = Mathf.Clamp(value, 0, audioClip.length);
+                audioReadPosition = (int)(seconds / audioClip.length * audioInputData.Length);
+                Flush(clearBuffer: true);
             }
         }
 
@@ -117,17 +123,17 @@ namespace TL.SoundTouch.Unity
 
         void Start()
         {
-            SetupClip();
+            SetupClip(audioClip);
         }
 
         void OnDestroy()
         {
-            soundTouch.Dispose();
-            inBuffer.Dispose();
-            outBuffer.Dispose();
+            soundTouch?.Dispose();
+            inBuffer?.Dispose();
+            outBuffer?.Dispose();
         }
 
-        void SetupClip()
+        void SetupClip(AudioClip audioClip)
         {
             audioSource.Stop();
             Flush(resetAudioReadPosition: true);
@@ -156,15 +162,13 @@ namespace TL.SoundTouch.Unity
             return dynamicClip;
         }
 
-        void Seek(float seconds)
-        {
-            seconds = Mathf.Clamp(seconds, 0, audioClip.length);
-            audioReadPosition = (int)(seconds / audioClip.length * audioInputData.Length);
-            Flush(clearBuffer: true);
-        }
-
         void PCMReaderCallback(float[] data)
         {
+            if (audioInputData == null || outBuffer == null)
+            {
+                return;
+            }
+
             int needData = data.Length;
             while (outBuffer.Available < needData && audioReadPosition < audioInputData.Length)
             {
@@ -185,7 +189,7 @@ namespace TL.SoundTouch.Unity
 
         void Process(int length)
         {
-            if (inBuffer == null || outBuffer == null)
+            if (inBuffer == null || outBuffer == null || audioInputData == null || soundTouch == null)
             {
                 return;
             }
@@ -210,12 +214,12 @@ namespace TL.SoundTouch.Unity
             {
                 audioReadPosition = 0;
             }
-            soundTouch.Clear();
-            inBuffer.Clear();
-            outBuffer.Clear();
+            soundTouch?.Clear();
+            inBuffer?.Clear();
+            outBuffer?.Clear();
             if (clearBuffer)
             {
-                audioSource.clip = CreateDynamicClip(audioClip.channels, audioClip.frequency, ref dynamicClip);
+                audioSource.clip = audioClip == null ? null : CreateDynamicClip(audioClip.channels, audioClip.frequency, ref dynamicClip);
                 if (resetAudioReadPosition)
                 {
                     delayNumSamples = audioReadPosition;
