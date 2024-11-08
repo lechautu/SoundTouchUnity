@@ -14,9 +14,8 @@ namespace TL.SoundTouch.Unity
         CircularBuffer inBuffer, outBuffer;
         AudioSource audioSource;
         AudioClip dynamicClip;
-        float[] processedBuffer;
-        float[] audioInputData;
-        int audioReadPosition;
+        float[] processedBuffer, audioInputData;
+        int audioReadPosition, delayNumSamples;
 
         [SerializeField] AudioClip audioClip;
         public AudioClip Clip
@@ -36,7 +35,10 @@ namespace TL.SoundTouch.Unity
             set
             {
                 tempo = value;
-                SetupTempo();
+                if (soundTouch != null)
+                {
+                    soundTouch.Tempo = tempo;
+                }
             }
         }
 
@@ -47,24 +49,36 @@ namespace TL.SoundTouch.Unity
             set
             {
                 pitchSemitone = value;
-                SetupSemitone();
-            }
-        }
-
-        int delayNumSamples;
-        public int DelayNumSamples
-        {
-            get => delayNumSamples;
-            set
-            {
-                delayNumSamples = value;
-                Debug.Log("DelayNumSamples: " + delayNumSamples);
+                if (soundTouch != null)
+                {
+                    soundTouch.PitchSemiTones = pitchSemitone;
+                }
             }
         }
 
         public bool IsPlaying => audioSource.isPlaying && audioInputData != null && (audioReadPosition - delayNumSamples) < audioInputData.Length;
         public float Duration => audioClip != null ? audioClip.length : 0;
-        public float Time => audioClip != null && audioInputData != null ? 1.0f * (audioReadPosition - delayNumSamples) / audioInputData.Length * audioClip.length : 0;
+
+        public float Time
+        {
+            get => audioClip != null && audioInputData != null ? 1.0f * (audioReadPosition - delayNumSamples) / audioInputData.Length * audioClip.length : 0;
+            set
+            {
+                Seek(value);
+            }
+        }
+
+        public bool IsMute
+        {
+            get => audioSource.mute;
+            set => audioSource.mute = value;
+        }
+
+        public float Volume
+        {
+            get => audioSource.volume;
+            set => audioSource.volume = value;
+        }
 
         public void Play()
         {
@@ -85,13 +99,6 @@ namespace TL.SoundTouch.Unity
         {
             audioSource.Stop();
             Flush(true, true);
-        }
-
-        public void Seek(float seconds)
-        {
-            seconds = Mathf.Clamp(seconds, 0, audioClip.length);
-            audioReadPosition = (int)(seconds / audioClip.length * audioInputData.Length);
-            Flush(clearBuffer: true);
         }
 
         #region Private methods
@@ -136,7 +143,7 @@ namespace TL.SoundTouch.Unity
             soundTouch.Channels = (uint)channels;
             soundTouch.SampleRate = (uint)freq;
             audioSource.clip = CreateDynamicClip(channels, freq, ref dynamicClip);
-            DelayNumSamples = audioReadPosition;
+            delayNumSamples = audioReadPosition;
         }
 
         AudioClip CreateDynamicClip(int channels, int frequency, ref AudioClip dynamicClip)
@@ -149,22 +156,11 @@ namespace TL.SoundTouch.Unity
             return dynamicClip;
         }
 
-        void SetupTempo()
+        void Seek(float seconds)
         {
-            if (soundTouch == null)
-            {
-                return;
-            }
-            soundTouch.Tempo = tempo;
-        }
-
-        void SetupSemitone()
-        {
-            if (soundTouch == null)
-            {
-                return;
-            }
-            soundTouch.PitchSemiTones = pitchSemitone;
+            seconds = Mathf.Clamp(seconds, 0, audioClip.length);
+            audioReadPosition = (int)(seconds / audioClip.length * audioInputData.Length);
+            Flush(clearBuffer: true);
         }
 
         void PCMReaderCallback(float[] data)
@@ -223,7 +219,7 @@ namespace TL.SoundTouch.Unity
                 audioSource.clip = CreateDynamicClip(audioClip.channels, audioClip.frequency, ref dynamicClip);
                 if (resetAudioReadPosition)
                 {
-                    DelayNumSamples = audioReadPosition;
+                    delayNumSamples = audioReadPosition;
                 }
             }
         }
