@@ -181,7 +181,6 @@ namespace TL.SoundTouch.Unity
                     data[i] = 0;
                 }
             }
-            Debug.Log("PCMReaderCallback");
         }
 
         void Process(int length)
